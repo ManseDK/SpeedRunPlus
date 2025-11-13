@@ -1,0 +1,47 @@
+# ========================================
+# SpeedRunPlus (SRP) Configuration
+# ========================================
+
+# Main overworld name (where players are teleported after runs)
+main-world: world
+
+# Game rule settings
+game-rules:
+  # Maximum number of players allowed to speedrun simultaneously
+  max-players: 4
+
+  # Maximum duration of a speedrun in minutes
+  max-time-minutes: 120
+
+# Prefix used for generated speedrun worlds
+world-prefix:
+  overworld: srp-overworld-
+  nether: srp-nether-
+  end: srp-end-
+
+# Timer settings
+timer:
+  # The amount of time to countdown from when starting a speedrun in seconds
+  countdown-seconds: 10
+
+# Podium configuration
+podium:
+  world: world
+  positions:
+    1:
+      x: 0.5
+      y: 80.5
+      z: 0.5
+      yaw: 90
+
+# AFK configuration
+afk:
+  # Minutes before ending a speedrun due to inactivity
+  timeout-minutes: 5
+
+  # Intervals between each AFK check
+  check-interval-seconds: 60
+
+  # Minimum number of blocks the player needs to move
+  # to be considered active between each AFK check
+  min-distance: 1.0

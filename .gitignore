@@ -34,3 +34,6 @@ libs
 libs/**
 scripts
 scripts/**
+
+# Personal configuration files
+**/config-personal.yml

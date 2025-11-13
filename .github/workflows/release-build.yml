@@ -47,6 +47,12 @@ jobs:
       - name: Verify libs directory
         run: ls -la libs/
 
+      - name: Create config
+        run: |
+          mkdir -p src/main/resources
+          printf '%s\n' "${{ secrets.CONFIG_YML }}" > src/main/resources/config.yml
+          ls -la src/main/resources
+
       - name: Set Maven project version to release tag
         run: |
           RELEASE_TAG=${GITHUB_REF#refs/tags/}

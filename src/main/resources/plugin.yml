@@ -1,0 +1,12 @@
+name: SRP
+version: 0.0.1
+author: Fx-Costa
+main: com.fx.srp.SpeedRunPlus
+api-version: 1.16
+depend:
+  - Multiverse-Core
+  - Multiverse-NetherPortals
+commands:
+  srp:
+    description: "SpeedRunPlus command."
+    usage: "/srp <start|stop|reset|battle|coop> [player]"
