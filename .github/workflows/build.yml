@@ -26,41 +26,41 @@ jobs:
           echo "Previous tag: $TAG"
           echo "previous_tag=$TAG" >> $GITHUB_OUTPUT
 
-      # Get the version
+      # Get the next version (if not SNAPSHOT)
       - name: Get next version
         if: ${{ !endsWith(steps.prev.outputs.previous_tag, '-SNAPSHOT') }}
         id: version
         uses: thenativeweb/get-next-version@main
 
-      #  Determine based on the presence of a [SNAPSHOT]-footer in commit message, whether it is a pre-release
+      # Determine final version
       - name: Determine final version
         id: final-version
         run: |
           PREV="${{ steps.prev.outputs.previous_tag }}"
-          NEXT="${{ steps.version.outputs.version }}"  # may be empty if skipped
-          COMMIT_MSG=$(git log -1 --pretty=%B)        # latest commit message
-
-          if [[ "$PREV" == *"-SNAPSHOT" ]]; then
-            echo "Previous tag is snapshot → keeping version: $PREV"
-            FINAL_VERSION="$PREV"
+          NEXT="${{ steps.version.outputs.version }}"
+          
+          # Remove -SNAPSHOT suffix from previous tag for comparison
+          BASE_PREV="${PREV%-SNAPSHOT}"
+          
+          SKIP_RELEASE="false"
+          
+          # If NEXT is empty or same as BASE_PREV → bump patch
+          if [[ -z "$NEXT" ]] || [[ "$NEXT" == "$BASE_PREV" ]]; then
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_PREV"
+              PATCH=$((PATCH + 1))
+              NEXT="$MAJOR.$MINOR.$PATCH"
+              echo "No version bump detected → bumped patch: $NEXT"
+              SKIP_RELEASE="true"
           else
-            # Otherwise we expect NEXT to be available
-            if [[ -z "$NEXT" ]]; then
-              echo "ERROR: Next version could not be determined!"
-              exit 1
-            fi
-
-            # Append -SNAPSHOT if commit message ends with [SNAPSHOT]
-            if [[ "$COMMIT_MSG" == *"[SNAPSHOT]" ]]; then
-              FINAL_VERSION="${NEXT}-SNAPSHOT"
-              echo "Appending -SNAPSHOT to next version → $FINAL_VERSION"
-            else
-              FINAL_VERSION="$NEXT"
-              echo "Using computed next version: $FINAL_VERSION"
-            fi
+              echo "Next version differs → using NEXT: $NEXT"
           fi
-
+          
+          # Always append -SNAPSHOT for final version
+          FINAL_VERSION="${NEXT}-SNAPSHOT"
+          echo "Final version: $FINAL_VERSION"
+          
           echo "final_version=$FINAL_VERSION" >> $GITHUB_OUTPUT
+          echo "skip_release=$SKIP_RELEASE" >> $GITHUB_OUTPUT
 
       # Dependencies
       - name: Create libs directory
@@ -100,7 +100,7 @@ jobs:
   # Call the release workflow if on main-branch
   release:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.build.outputs.skip_release != 'true'
     uses: ./.github/workflows/release.yml
     with:
       version: ${{ needs.build.outputs.version }}
