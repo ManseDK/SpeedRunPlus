@@ -8,7 +8,9 @@ import com.fx.srp.commands.GameMode;
 import com.fx.srp.managers.util.AfkManager;
 import com.fx.srp.managers.util.LeaderboardManager;
 import com.fx.srp.managers.util.SeedManager;
+import com.fx.srp.managers.util.TriangulationManager;
 import com.fx.srp.managers.util.WorldManager;
+import com.fx.srp.model.EyeThrow;
 import com.fx.srp.model.player.Speedrunner;
 import com.fx.srp.model.run.Speedrun;
 import com.fx.srp.model.run.SoloSpeedrun;
@@ -54,6 +56,7 @@ public class GameManager {
     private final SeedManager seedManager;
     private final AfkManager afkManager;
     private final LeaderboardManager leaderboardManager;
+    private final TriangulationManager triangulationManager;
 
     /**
      * Constructs a new {@link GameManager} and initializes all sub-managers
@@ -66,6 +69,7 @@ public class GameManager {
         this.afkManager = new AfkManager(plugin);
         this.leaderboardManager = new LeaderboardManager(plugin);
         this.seedManager = new SeedManager(plugin);
+        this.triangulationManager = new TriangulationManager();
         WorldManager worldManager = new WorldManager(plugin, seedManager);
 
         // Game mode managers
@@ -228,6 +232,14 @@ public class GameManager {
     /* ==========================================================
      *                    Event management
      * ========================================================== */
+    /**
+     * Assisted triangulation
+     */
+    public void assistedTriangulation(Speedrunner speedrunner, EyeThrow eyeThrow) {
+        // Perform the assisted triangulation
+        triangulationManager.assistedTriangulation(speedrunner, eyeThrow);
+    }
+
     /**
      * Handles player movement events.
      *

@@ -63,6 +63,8 @@ public final class ConfigHandler {
     @Getter private int maxPlayers;
     @Getter private long maxRunTime;
     @Getter private long maxRequestTime;
+    @Getter private boolean assistedTriangulation;
+    @Getter private String assistedTriangulationStrategy;
     @Getter @Setter private boolean filteredSeeds;
     private Map<SeedCategory.SeedType, Integer> seedWeights;
     @Getter private URL filteredSeedsApi;
@@ -152,6 +154,14 @@ public final class ConfigHandler {
         maxRunTime = config.getLong("game-rules.max-time-minutes", 30) * 60 * 1000;
         maxRequestTime = config.getLong("game-rules.max-request-seconds", 30) * 1000;
         filteredSeeds = config.getBoolean("game-rules.filtered-seeds.use-filtered-seeds", false);
+        assistedTriangulation = config.getBoolean(
+                "game-rules.assisted-triangulation.use-assisted-triangulation",
+                false
+        );
+        assistedTriangulationStrategy = config.getString(
+                "game-rules.assisted-triangulation.strategy",
+                "DETERMINISTIC"
+        );
 
         // Seed weights
         seedWeights = new ConcurrentHashMap<>();

@@ -1,6 +1,7 @@
 package com.fx.srp.model.player;
 
 import com.fx.srp.managers.util.WorldManager;
+import com.fx.srp.model.EyeThrow;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang.time.StopWatch;
@@ -35,6 +36,9 @@ public class Speedrunner {
     @Setter private GameMode savedGameMode;
     private boolean playerFreeze;
 
+    // Recorded eye throws by the speedrunner - for assisted triangulation
+    private final List<EyeThrow> eyeThrows = new ArrayList<>();
+
     // Worlds
     @Getter @Setter private WorldManager.WorldSet worldSet;
 
@@ -55,6 +59,16 @@ public class Speedrunner {
     /* ==========================================================
      *                      Player states
      * ========================================================== */
+    /**
+     * Add an eye of ender throw to the player's recorded throws - for assisted triangulation at 2 throws.
+     */
+    public void addEyeThrow(EyeThrow eyeThrow) {
+        // Cycle eye throws, keeping track of only the latest two throws
+        int maximumEyeCount = 2;
+        if (eyeThrows.size() >= maximumEyeCount) eyeThrows.remove(0);
+        eyeThrows.add(eyeThrow);
+    }
+
     /**
      * Freezes the player: disables movement.
      */
