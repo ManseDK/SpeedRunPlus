@@ -106,7 +106,9 @@ jobs:
           printf '%s\n' "${{ vars.SRP_CONFIG_YML }}" > src/main/resources/config.yml
 
       - name: Build with Maven
-        run: mvn -B versions:set -DnewVersion=${{ steps.final-version.outputs.final_version }} -DprocessAllModules clean package
+        run: |
+          mvn -B versions:set -DnewVersion=${{ steps.final-version.outputs.final_version }} -DgenerateBackupPoms=false
+          mvn -B clean package
 
       # Upload resulting JAR for downstream workflows
       - name: Upload built JAR
