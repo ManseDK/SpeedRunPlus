@@ -48,7 +48,7 @@ public enum AdminAction {
     SEED((gameManager, ctx) -> {
         SeedCategory.SeedType type = ctx.get("type");
         int amount = ctx.get("amount");
-        CommandSender sender = ctx.get("sender");
+        CommandSender sender = ctx.getSender();
         gameManager.addSeed(type, amount, sender);
     }, EnumArgument.of(SeedCategory.SeedType.class, "type"), IntegerArgument.of("amount"));
 
