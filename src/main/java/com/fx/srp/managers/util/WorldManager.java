@@ -9,6 +9,7 @@ import com.onarandombox.MultiverseNetherPortals.MultiverseNetherPortals;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Difficulty;
 import org.bukkit.PortalType;
 import org.bukkit.World;
 import org.bukkit.WorldType;
@@ -165,6 +166,8 @@ public class WorldManager {
                 null
         );
         MultiverseWorld overworld = mvWorldManager.getMVWorld(overworldName);
+        // Ensure difficulty is set to EASY
+        if (Bukkit.getWorld(overworldName) != null) Bukkit.getWorld(overworldName).setDifficulty(Difficulty.EASY);
 
         // Nether
         mvWorldManager.addWorld(
@@ -176,6 +179,7 @@ public class WorldManager {
                 null
         );
         MultiverseWorld nether = mvWorldManager.getMVWorld(netherName);
+        if (Bukkit.getWorld(netherName) != null) Bukkit.getWorld(netherName).setDifficulty(Difficulty.EASY);
         nether.setRespawnToWorld(overworldName);
 
         // End
@@ -188,6 +192,7 @@ public class WorldManager {
                 null
         );
         MultiverseWorld end = mvWorldManager.getMVWorld(endName);
+        if (Bukkit.getWorld(endName) != null) Bukkit.getWorld(endName).setDifficulty(Difficulty.EASY);
         end.setRespawnToWorld(overworldName);
 
         // Link the three world
