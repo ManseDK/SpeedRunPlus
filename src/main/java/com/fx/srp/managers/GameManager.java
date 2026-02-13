@@ -87,6 +87,15 @@ public class GameManager {
         GameMode.COOP.bindManager(coopManager);
     }
 
+    /**
+     * Returns the CoopManager instance.
+     *
+     * @return the CoopManager
+     */
+    public CoopManager getCoopManager() {
+        return coopManager;
+    }
+
     /* ==========================================================
      *                      Run Management
      * ========================================================== */

@@ -265,4 +265,49 @@ public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
 
         finishRun(coopSpeedrun, 200);
     }
+
+    // Method to send a coop request to another player
+    public void sendCoopRequest(Player sender, Player target) {
+        // Check if the target player is already in a coop
+        if (isPlayerInCoop(target)) {
+            sender.sendMessage(ChatColor.RED + "The player is already in a coop.");
+            return;
+        }
+
+        // Add logic to track the coop request
+        // For now, just send a message to the target player
+        target.sendMessage(ChatColor.GREEN + sender.getName() + " has invited you to join their coop. Type /srp coop accept to join.");
+        sender.sendMessage(ChatColor.GREEN + "You have invited " + target.getName() + " to your coop.");
+    }
+
+    // Method to send a duel request to another coop leader
+    public void sendDuelRequest(Player sender, Player targetLeader) {
+        // Check if both players are coop leaders
+        if (!isPlayerCoopLeader(sender)) {
+            sender.sendMessage(ChatColor.RED + "You must be a coop leader to send a duel request.");
+            return;
+        }
+
+        if (!isPlayerCoopLeader(targetLeader)) {
+            sender.sendMessage(ChatColor.RED + targetLeader.getName() + " is not a coop leader.");
+            return;
+        }
+
+        // Add logic to track the duel request
+        // For now, just send a message to the target coop leader
+        targetLeader.sendMessage(ChatColor.YELLOW + sender.getName() + " has challenged your coop to a duel! Type /srp coop accept to accept the challenge.");
+        sender.sendMessage(ChatColor.GREEN + "You have challenged " + targetLeader.getName() + "'s coop to a duel.");
+    }
+
+    // Placeholder method to check if a player is in a coop
+    private boolean isPlayerInCoop(Player player) {
+        // Implement logic to check if the player is in a coop
+        return false;
+    }
+
+    // Placeholder method to check if a player is a coop leader
+    private boolean isPlayerCoopLeader(Player player) {
+        // Implement logic to check if the player is a coop leader
+        return false;
+    }
 }

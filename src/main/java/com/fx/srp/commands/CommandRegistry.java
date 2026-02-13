@@ -124,6 +124,38 @@ public class CommandRegistry {
 
         // Register admin commands
         registerAdminCommands(commandManager, gameManager);
+
+        // Register /srp coop request <player>
+        Command.Builder<CommandSender> coopRequestCommand = commandManager.commandBuilder(BASE_COMMAND)
+                .literal("coop")
+                .literal("request")
+                .argument(PlayerArgument.of("player"))
+                .permission(usagePermission)
+                .handler(context -> {
+                    Player sender = (Player) context.getSender();
+                    Player target = context.get("player");
+
+                    // Logic to send a coop request to the target player
+                    gameManager.getCoopManager().sendCoopRequest(sender, target);
+                    sender.sendMessage("Coop request sent to " + target.getName());
+                });
+        commandManager.command(coopRequestCommand);
+
+        // Register /srp coop duel <coop2leader>
+        Command.Builder<CommandSender> coopDuelCommand = commandManager.commandBuilder(BASE_COMMAND)
+                .literal("coop")
+                .literal("duel")
+                .argument(PlayerArgument.of("coop2leader"))
+                .permission(usagePermission)
+                .handler(context -> {
+                    Player sender = (Player) context.getSender();
+                    Player targetLeader = context.get("coop2leader");
+
+                    // Logic to send a duel request to the target coop leader
+                    gameManager.getCoopManager().sendDuelRequest(sender, targetLeader);
+                    sender.sendMessage("Duel request sent to " + targetLeader.getName());
+                });
+        commandManager.command(coopDuelCommand);
     }
 
     private static void registerAdminCommands(CommandManager<CommandSender> commandManager, GameManager gameManager) {
