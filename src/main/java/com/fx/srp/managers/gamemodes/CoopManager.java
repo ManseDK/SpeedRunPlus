@@ -89,7 +89,8 @@ public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
             );
 
             gameManager.registerRun(teamRun);
-            initializeRun(teamRun);
+            // TeamBattleSpeedrun is not a CoopSpeedrun; call generic initializer via raw type to avoid generic type mismatch
+            ((GameModeManager) this).initializeRun(teamRun);
 
             leader.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
             partner.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
@@ -133,7 +134,8 @@ public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
                 partnerRunner.resetState();
                 partnerMateRunner.resetState();
 
-                startCountdown(teamRun, List.of(leaderRunner, leaderMateRunner, partnerRunner, partnerMateRunner));
+                // Use raw type dispatch to call startCountdown with a TeamBattleSpeedrun
+                ((GameModeManager) this).startCountdown(teamRun, List.of(leaderRunner, leaderMateRunner, partnerRunner, partnerMateRunner));
             });
 
             return;
