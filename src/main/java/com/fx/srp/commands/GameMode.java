@@ -28,7 +28,7 @@ public enum GameMode {
     // Multiplayer (1v1) speedrun
     BATTLE(
             // All actions (subcommands) for the battle game mode
-            EnumSet.of(Action.REQUEST, Action.RESET, Action.ACCEPT, Action.DECLINE, Action.STOP),
+            EnumSet.of(Action.REQUEST, Action.RESET, Action.ACCEPT, Action.DECLINE, Action.STOP, Action.TEAM),
 
             // All commands allowed during a battle speedrun
             EnumSet.of(Action.RESET, Action.STOP)

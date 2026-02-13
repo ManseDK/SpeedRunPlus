@@ -16,24 +16,24 @@ import java.util.function.BiConsumer;
 @Getter
 public enum Action {
 
-    START((gameManager, ctx) -> {
+    START((gm, ctx) -> {
         Player sender = (Player) ctx.getSender();
         GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
         gameMode.getManager().start(sender);
     }),
 
-    RESET((gameManager, ctx) -> {
+    RESET((gm, ctx) -> {
         Player sender = (Player) ctx.getSender();
         GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
         gameMode.getManager().reset(sender);
     }),
 
-    STOP((gameManager, ctx) -> {
+    STOP((gm, ctx) -> {
         Player sender = (Player) ctx.getSender();
-        gameManager.abortRun(sender);
+        gm.abortRun(sender);
     }),
 
-    REQUEST((gameManager, ctx) -> {
+    REQUEST((gm, ctx) -> {
         Player sender = (Player) ctx.getSender();
         GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
         Player target = ctx.get(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey());
@@ -42,14 +42,26 @@ public enum Action {
         );
     }, PlayerArgument.of(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey())),
 
-    ACCEPT((gameManager, ctx) -> {
+    TEAM((gm, ctx) -> {
+        // /srp <gamemode> team <player> - select a teammate for team-based battles
+        Player sender = (Player) ctx.getSender();
+        Player target = ctx.get(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey());
+        if (sender.equals(target)) {
+            sender.sendMessage("You cannot set yourself as your teammate.");
+            return;
+        }
+        gm.setSelectedTeammate(sender, target);
+        sender.sendMessage("§eTeammate set to §f" + target.getName() + "§e. When you initiate/accept a battle both teams will be used if available.");
+    }, PlayerArgument.of(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey())),
+
+    ACCEPT((gm, ctx) -> {
         GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
         gameMode.getManager().asMultiplayerManager().ifPresent(gameModeManager ->
                 gameModeManager.accept((Player) ctx.getSender())
         );
     }),
 
-    DECLINE((gameManager, ctx) -> {
+    DECLINE((gm, ctx) -> {
         GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
         Player target = ctx.get(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey());
         gameMode.getManager().asMultiplayerManager().ifPresent(gameModeManager ->

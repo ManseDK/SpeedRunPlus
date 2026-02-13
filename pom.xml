@@ -36,24 +36,18 @@
         </dependency>
 
         <!-- Dependencies to other plugins -->
-        <dependency>
-            <groupId>com.github.Multiverse</groupId>
-            <artifactId>Multiverse-Core</artifactId>
-            <version>4.3.16</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.github.Multiverse</groupId>
-            <artifactId>Multiverse-NetherPortals</artifactId>
-            <version>4.2.3</version>
-            <scope>provided</scope>
-        </dependency>
 
         <dependency>
             <groupId>cloud.commandframework</groupId>
             <artifactId>cloud-paper</artifactId>
             <version>1.8.4</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mvplugins.multiverse.core</groupId> <!-- Replace for other sub-modules -->
+            <artifactId>multiverse-core</artifactId> <!-- Replace for other sub-modules -->
+            <version>5.0.0-SNAPSHOT</version> <!-- Replace with the version you need -->
+            <scope>provided</scope>
         </dependency>
 
     </dependencies>
@@ -177,6 +171,22 @@
         <repository>
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
+        </repository>
+
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+
+            <repository>
+                <id>onarandombox</id>
+                <url>https://repo.onarandombox.com/content/groups/public/</url>
+            </repository>
+
+        <repository>
+            <id>multiverse-multiverse-releases</id>
+            <name>Multiverse Repository</name>
+            <url>https://repo.onarandombox.com/multiverse-releases</url>
         </repository>
 
         <!-- Spigot (fallback) -->
