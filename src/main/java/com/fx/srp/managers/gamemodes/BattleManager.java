@@ -16,6 +16,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.*;
+import com.fx.srp.model.seed.SeedCategory;
 
 /**
  * Manager responsible for handling all aspects of the Battle game mode (1v1 speedrun battles).
@@ -104,36 +105,44 @@ public class BattleManager extends MultiplayerGameModeManager<Speedrun> {
             challengee.sendMessage(ChatColor.YELLOW + "Creating the world for your team...");
 
             // Create two world-sets: one for each team. Use the team leaders as representatives.
-            worldManager.createWorldsForPlayers(List.of(challenger, challengee), null, sets -> {
-                WorldManager.WorldSet challengerWorldSet = sets.get(challenger.getUniqueId());
-                WorldManager.WorldSet challengeeWorldSet = sets.get(challengee.getUniqueId());
+            worldManager.createWorldsForPlayers(List.of(challenger, challengee), null, (sets, seedType) -> {
+                 WorldManager.WorldSet challengerWorldSet = sets.get(challenger.getUniqueId());
+                 WorldManager.WorldSet challengeeWorldSet = sets.get(challengee.getUniqueId());
 
-                // Assign same world set to teammates on each team and set shared seed
-                challengerSpeedrunner.setWorldSet(challengerWorldSet);
-                challengerMateRunner.setWorldSet(challengerWorldSet);
-                challengeeSpeedrunner.setWorldSet(challengeeWorldSet);
-                challengeeMateRunner.setWorldSet(challengeeWorldSet);
-                // Assign seed from the team's overworld via the spawn world's seed
-                long seedLong = challengerWorldSet.getSpawn().getWorld().getSeed();
-                teamRun.setSeed(Long.valueOf(seedLong));
+                 // Assign same world set to teammates on each team and set shared seed
+                 challengerSpeedrunner.setWorldSet(challengerWorldSet);
+                 challengerMateRunner.setWorldSet(challengerWorldSet);
+                 challengeeSpeedrunner.setWorldSet(challengeeWorldSet);
+                 challengeeMateRunner.setWorldSet(challengeeWorldSet);
+                 // Assign seed from the team's overworld via the spawn world's seed
+                 long seedLong = challengerWorldSet.getSpawn().getWorld().getSeed();
+                 teamRun.setSeed(Long.valueOf(seedLong));
 
-                // Freeze all
-                challengerSpeedrunner.freeze();
-                challengerMateRunner.freeze();
-                challengeeSpeedrunner.freeze();
-                challengeeMateRunner.freeze();
+                // Inform all players about the seed type
+                String raw = seedType.name().toLowerCase().replace('_', ' ');
+                String pretty = raw.substring(0,1).toUpperCase() + raw.substring(1);
+                challenger.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                challengerTeamMate.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                challengee.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                challengeeTeamMate.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
 
-                // Teleport
-                challenger.teleport(challengerSpeedrunner.getWorldSet().getSpawn());
-                challengerTeamMate.teleport(challengerMateRunner.getWorldSet().getSpawn());
-                challengee.teleport(challengeeSpeedrunner.getWorldSet().getSpawn());
-                challengeeTeamMate.teleport(challengeeMateRunner.getWorldSet().getSpawn());
+                 // Freeze all
+                 challengerSpeedrunner.freeze();
+                 challengerMateRunner.freeze();
+                 challengeeSpeedrunner.freeze();
+                 challengeeMateRunner.freeze();
 
-                // Reset states
-                challengerSpeedrunner.resetState();
-                challengerMateRunner.resetState();
-                challengeeSpeedrunner.resetState();
-                challengeeMateRunner.resetState();
+                 // Teleport
+                 challenger.teleport(challengerSpeedrunner.getWorldSet().getSpawn());
+                 challengerTeamMate.teleport(challengerMateRunner.getWorldSet().getSpawn());
+                 challengee.teleport(challengeeSpeedrunner.getWorldSet().getSpawn());
+                 challengeeTeamMate.teleport(challengeeMateRunner.getWorldSet().getSpawn());
+
+                 // Reset states
+                 challengerSpeedrunner.resetState();
+                 challengerMateRunner.resetState();
+                 challengeeSpeedrunner.resetState();
+                 challengeeMateRunner.resetState();
 
                 startCountdown((Speedrun) teamRun, List.of(
                         challengerSpeedrunner,
@@ -169,31 +178,37 @@ public class BattleManager extends MultiplayerGameModeManager<Speedrun> {
 
         challenger.sendMessage(ChatColor.YELLOW + "Creating the world...");
         challengee.sendMessage(ChatColor.YELLOW + "Creating the world...");
-        worldManager.createWorldsForPlayers(List.of(challenger, challengee), null, sets -> {
-            // Get the set of worlds (overworld, nether, end) for each of the two players
-            WorldManager.WorldSet challengerWorldSet = sets.get(challenger.getUniqueId());
-            WorldManager.WorldSet challengeeWorldSet = sets.get(challengee.getUniqueId());
+        worldManager.createWorldsForPlayers(List.of(challenger, challengee), null, (sets, seedType) -> {
+             // Get the set of worlds (overworld, nether, end) for each of the two players
+             WorldManager.WorldSet challengerWorldSet = sets.get(challenger.getUniqueId());
+             WorldManager.WorldSet challengeeWorldSet = sets.get(challengee.getUniqueId());
 
-            // Assign them the world sets and set the shared seed
-            challengerSpeedrunner.setWorldSet(challengerWorldSet);
-            challengeeSpeedrunner.setWorldSet(challengeeWorldSet);
-            long seedLong2 = challengerWorldSet.getSpawn().getWorld().getSeed();
-            battleSpeedrun.setSeed(Long.valueOf(seedLong2));
+             // Assign them the world sets and set the shared seed
+             challengerSpeedrunner.setWorldSet(challengerWorldSet);
+             challengeeSpeedrunner.setWorldSet(challengeeWorldSet);
+             long seedLong2 = challengerWorldSet.getSpawn().getWorld().getSeed();
+             battleSpeedrun.setSeed(Long.valueOf(seedLong2));
 
-            // Freeze the players
-            challengerSpeedrunner.freeze();
-            challengeeSpeedrunner.freeze();
+            // Inform both players about the seed type
+            String raw = seedType.name().toLowerCase().replace('_', ' ');
+            String pretty = raw.substring(0,1).toUpperCase() + raw.substring(1);
+            challenger.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+            challengee.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
 
-            // Teleport players
-            challenger.teleport(challengerSpeedrunner.getWorldSet().getSpawn());
-            challengee.teleport(challengeeSpeedrunner.getWorldSet().getSpawn());
+             // Freeze the players
+             challengerSpeedrunner.freeze();
+             challengeeSpeedrunner.freeze();
 
-            // Reset players' state (health, hunger, inventory, etc.)
-            challengerSpeedrunner.resetState();
-            challengeeSpeedrunner.resetState();
+             // Teleport players
+             challenger.teleport(challengerSpeedrunner.getWorldSet().getSpawn());
+             challengee.teleport(challengeeSpeedrunner.getWorldSet().getSpawn());
 
-            startCountdown((Speedrun) battleSpeedrun, List.of(challengerSpeedrunner, challengeeSpeedrunner));
-        });
+             // Reset players' state (health, hunger, inventory, etc.)
+             challengerSpeedrunner.resetState();
+             challengeeSpeedrunner.resetState();
+
+             startCountdown((Speedrun) battleSpeedrun, List.of(challengerSpeedrunner, challengeeSpeedrunner));
+         });
     }
 
     /* ==========================================================

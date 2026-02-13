@@ -19,6 +19,7 @@ public class PendingRequest {
     private final long timestamp;
 
     @Getter @Setter private int timeoutTaskId = -1;
+    @Getter private final boolean teamInvite;
 
     /**
      * Constructs a new PendingRequest for the given player UUID.
@@ -26,8 +27,13 @@ public class PendingRequest {
      * @param playerUUID The UUID of the player who sent the request.
      */
     public PendingRequest(UUID playerUUID) {
+        this(playerUUID, false);
+    }
+
+    public PendingRequest(UUID playerUUID, boolean teamInvite) {
         this.playerUUID = playerUUID;
         this.timestamp = System.currentTimeMillis();
+        this.teamInvite = teamInvite;
     }
 
     /**

@@ -13,14 +13,14 @@ import org.bukkit.PortalType;
 import org.bukkit.World;
 import org.bukkit.WorldType;
 import org.bukkit.entity.Player;
-import org.bukkit.util.Consumer;
-
 import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
+import com.fx.srp.model.seed.SeedCategory;
 
 /**
  * Handles creation, management, and deletion of speedrun worlds for players.
@@ -107,18 +107,29 @@ public class WorldManager {
     public void createWorldsForPlayers(
             Collection<Player> players,
             Long inputSeed,
-            Consumer<Map<UUID, WorldSet>> callback
+            BiConsumer<Map<UUID, WorldSet>, SeedCategory.SeedType> callback
     ) {
         Map<UUID, WorldSet> sets = new ConcurrentHashMap<>();
         AtomicInteger done = new AtomicInteger(0);
         int total = players.size();
 
-        // Determine the seed
+        // Determine the seed and its originating type
         Long seed = inputSeed;
-        if (seed == null) seed = seedManager.selectSeed();
-        // If no filtered seed was selected (i.e. RANDOM), generate a single random seed
-        // so that all players in this creation call get the same world seed instead of
-        // having Minecraft pick a different random seed per world.
+        SeedCategory.SeedType seedType;
+        if (inputSeed == null) {
+            SeedManager.SelectedSeed sel = seedManager.selectSeedWithType();
+            if (sel != null) {
+                seed = sel.getSeed();
+                seedType = sel.getSeedType();
+            } else {
+                seedType = SeedCategory.SeedType.RANDOM;
+            }
+        } else {
+            seedType = SeedCategory.SeedType.RANDOM;
+        }
+
+        // If no seed was selected (RANDOM), generate a single random seed so all players
+        // in this creation call get the same world seed instead of different random seeds.
         if (seed == null) seed = ThreadLocalRandom.current().nextLong();
         String seedString = String.valueOf(seed);
 
@@ -130,7 +141,7 @@ public class WorldManager {
                     sets.put(player.getUniqueId(), set);
 
                     if (done.incrementAndGet() == total) {
-                        callback.accept(sets);
+                        callback.accept(sets, seedType);
                     }
                 });
             });
@@ -195,11 +206,25 @@ public class WorldManager {
      * @param callback     Callback invoked after all worlds are deleted.
      */
     public void deleteWorldsForPlayers(Collection<Speedrunner> speedrunners, Runnable callback) {
-        AtomicInteger done = new AtomicInteger(0);
-        int total = speedrunners.size();
+        // Collect unique world sets by overworld name to avoid deleting shared worlds multiple times
+        Map<String, WorldSet> unique = new ConcurrentHashMap<>();
+        for (Speedrunner sr : speedrunners) {
+            WorldSet ws = sr.getWorldSet();
+            if (ws == null) continue;
+            unique.putIfAbsent(ws.getOverworld().getName(), ws);
+        }
 
-        speedrunners.forEach(speedrunner -> Bukkit.getScheduler().runTask(plugin, () -> {
-            deleteWorldSet(speedrunner);
+        AtomicInteger done = new AtomicInteger(0);
+        int total = unique.size();
+
+        if (total == 0) {
+            // Nothing to delete
+            Bukkit.getScheduler().runTask(plugin, callback);
+            return;
+        }
+
+        unique.values().forEach(worldSet -> Bukkit.getScheduler().runTask(plugin, () -> {
+            deleteWorldSet(worldSet);
 
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (done.incrementAndGet() == total) {
@@ -209,21 +234,19 @@ public class WorldManager {
         }));
     }
 
-    private void deleteWorldSet(Speedrunner speedrunner) {
-        // Get the player's worlds
-        WorldSet worldSet = speedrunner.getWorldSet();
-
+    private void deleteWorldSet(WorldSet worldSet) {
         // Get world names
         String overworldName = worldSet.overworld.getName();
-        String netherName =worldSet.nether.getName();
+        String netherName = worldSet.nether.getName();
         String endName = worldSet.end.getName();
 
         // Remove world links
         unlinkWorlds(overworldName, netherName, endName);
 
-        mvWorldManager.deleteWorld(overworldName);
-        mvWorldManager.deleteWorld(netherName);
-        mvWorldManager.deleteWorld(endName);
+        // Delete worlds if they exist
+        if (mvWorldManager.getMVWorld(overworldName) != null) mvWorldManager.deleteWorld(overworldName);
+        if (mvWorldManager.getMVWorld(netherName) != null) mvWorldManager.deleteWorld(netherName);
+        if (mvWorldManager.getMVWorld(endName) != null) mvWorldManager.deleteWorld(endName);
     }
 
     private void cleanupLeftoverSrpWorlds() {

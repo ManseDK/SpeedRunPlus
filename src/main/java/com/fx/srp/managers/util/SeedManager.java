@@ -147,27 +147,37 @@ public class SeedManager {
      *         or the RANDOM category was selected.
      */
     public Long selectSeed() {
+        SelectedSeed sel = selectSeedWithType();
+        return sel == null ? null : sel.getSeed();
+    }
+
+    /**
+     * Selects a seed together with its originating SeedType. The returned SelectedSeed
+     * contains the chosen seed (or null when the RANDOM category was selected) and the
+     * corresponding SeedType.
+     */
+    public SelectedSeed selectSeedWithType() {
         if (seedCategories.isEmpty() || totalSeedWeight < 1) return null;
 
-        // Roll a random number within the sum of weights
         int weightRoll = ThreadLocalRandom.current().nextInt(totalSeedWeight);
         int cumulativeWeight = 0;
 
-        // Pick a seed category
         for (SeedCategory category : seedCategories) {
             cumulativeWeight += category.getWeight();
 
             if (weightRoll < cumulativeWeight) {
-                // Return null in case the RANDOM seed category was selected
-                if (category.getSeedType() == SeedCategory.SeedType.RANDOM) return null;
+                // If RANDOM category selected, return null seed but mark type RANDOM
+                if (category.getSeedType() == SeedCategory.SeedType.RANDOM) {
+                    logger.info("[SRP] Picked seed category: RANDOM");
+                    return new SelectedSeed(null, SeedCategory.SeedType.RANDOM);
+                }
 
-                // Roll a random number within the lengths of seeds in the category
                 List<Long> seeds = category.getSeeds();
                 final int seedRoll = ThreadLocalRandom.current().nextInt(seeds.size());
                 Long seed = seeds.get(seedRoll);
 
                 logger.info("[SRP] Picked seed category: " + category.getSeedType().name() + ", seed: " + seed);
-                return seed;
+                return new SelectedSeed(seed, category.getSeedType());
             }
         }
 
@@ -292,5 +302,21 @@ public class SeedManager {
         } catch (IOException e) {
             logger.warning("[SRP] Failed to persist seeds to file " + seedFile.getName() + ": " + e.getMessage());
         }
+    }
+
+    /**
+     * Simple container representing a seed selection and its originating category.
+     */
+    public static class SelectedSeed {
+        private final Long seed;
+        private final com.fx.srp.model.seed.SeedCategory.SeedType seedType;
+
+        public SelectedSeed(Long seed, com.fx.srp.model.seed.SeedCategory.SeedType seedType) {
+            this.seed = seed;
+            this.seedType = seedType;
+        }
+
+        public Long getSeed() { return seed; }
+        public com.fx.srp.model.seed.SeedCategory.SeedType getSeedType() { return seedType; }
     }
 }

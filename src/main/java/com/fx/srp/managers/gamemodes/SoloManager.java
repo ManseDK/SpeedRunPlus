@@ -12,6 +12,7 @@ import lombok.NonNull;
 import org.apache.commons.lang.time.StopWatch;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import com.fx.srp.model.seed.SeedCategory;
 
 import java.util.List;
 import java.util.Optional;
@@ -67,13 +68,18 @@ public class SoloManager extends GameModeManager<SoloSpeedrun> {
         initializeRun(soloSpeedrun);
 
         player.sendMessage(ChatColor.YELLOW + "Creating the world...");
-        worldManager.createWorldsForPlayers(List.of(player), null, sets -> {
+        worldManager.createWorldsForPlayers(List.of(player), null, (sets, seedType) -> {
             // Get the set of worlds (overworld, nether, end)
             WorldManager.WorldSet worldSet = sets.get(player.getUniqueId());
 
             // Assign the speedrunner the world set and set the seed
             runner.setWorldSet(worldSet);
             soloSpeedrun.setSeed(worldSet.getOverworld().getSeed());
+
+            // Inform the player about the seed type
+            String raw = seedType.name().toLowerCase().replace('_', ' ');
+            String pretty = raw.substring(0,1).toUpperCase() + raw.substring(1);
+            player.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
 
             // Freeze the player
             runner.freeze();

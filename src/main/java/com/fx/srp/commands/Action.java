@@ -54,6 +54,22 @@ public enum Action {
         sender.sendMessage("§eTeammate set to §f" + target.getName() + "§e. When you initiate/accept a battle both teams will be used if available.");
     }, PlayerArgument.of(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey())),
 
+    INVITE((gm, ctx) -> {
+        // /srp <gamemode> invite - invite your selected teammate to join you
+        Player sender = (Player) ctx.getSender();
+        GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
+        java.util.Optional<Player> mate = gm.getSelectedTeammate(sender);
+        if (mate.isEmpty()) {
+            sender.sendMessage("§cYou have no selected teammate. Use §e/srp <mode> team <player>§c to set one.");
+            return;
+        }
+        Player teammate = mate.get();
+        // Send a request to the teammate using the multiplayer manager
+        gameMode.getManager().asMultiplayerManager().ifPresent(manager ->
+                manager.request(sender, teammate, gameMode)
+        );
+    }),
+
     ACCEPT((gm, ctx) -> {
         GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
         gameMode.getManager().asMultiplayerManager().ifPresent(gameModeManager ->

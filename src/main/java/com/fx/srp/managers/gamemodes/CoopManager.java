@@ -75,7 +75,7 @@ public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
 
         leader.sendMessage(ChatColor.YELLOW + "Creating the world...");
         partner.sendMessage(ChatColor.YELLOW + "Creating the world...");
-        worldManager.createWorldsForPlayers(List.of(leader), null, sets -> {
+        worldManager.createWorldsForPlayers(List.of(leader), null, (sets, seedType) -> {
             // Get the set of worlds (overworld, nether, end) for each of the two players
             WorldManager.WorldSet leaderWorldSet = sets.get(leader.getUniqueId());
 
@@ -83,6 +83,12 @@ public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
             leaderSpeedrunner.setWorldSet(leaderWorldSet);
             partnerSpeedrunner.setWorldSet(leaderWorldSet);
             coopSpeedrun.setSeed(leaderWorldSet.getOverworld().getSeed());
+
+            // Inform both players about the seed type
+            String raw = seedType.name().toLowerCase().replace('_', ' ');
+            String pretty = raw.substring(0,1).toUpperCase() + raw.substring(1);
+            leader.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+            partner.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
 
             // Freeze the players
             leaderSpeedrunner.freeze();

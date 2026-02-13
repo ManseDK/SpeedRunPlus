@@ -16,6 +16,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Consumer;
+import com.fx.srp.model.seed.SeedCategory;
 
 import java.util.Collection;
 import java.util.List;
@@ -177,31 +178,31 @@ public abstract class GameModeManager<T extends Speedrun> implements IGameModeMa
         speedrunner.freeze();
 
         // Create new worlds
-        worldManager.createWorldsForPlayers(List.of(player), seed, sets -> {
+        worldManager.createWorldsForPlayers(List.of(player), seed, (sets, seedType) -> {
             WorldManager.WorldSet newWorldSet = sets.get(uuid);
 
-            Bukkit.getScheduler().runTask(plugin, () -> {
-                // Teleport- and reset state of player
-                player.teleport(newWorldSet.getSpawn());
-                speedrunner.resetState();
+             Bukkit.getScheduler().runTask(plugin, () -> {
+                 // Teleport- and reset state of player
+                 player.teleport(newWorldSet.getSpawn());
+                 speedrunner.resetState();
 
-                // Unfreeze player & display title
-                speedrunner.unfreeze();
-                player.sendTitle(ChatColor.GREEN + "GO!", "", 0, 40, 20);
-                Bukkit.getScheduler().runTaskLater(plugin, player::resetTitle, 40L);
+                 // Unfreeze player & display title
+                 speedrunner.unfreeze();
+                 player.sendTitle(ChatColor.GREEN + "GO!", "", 0, 40, 20);
+                 Bukkit.getScheduler().runTaskLater(plugin, player::resetTitle, 40L);
 
-                TimerUtil.createTimer(List.of(player), speedrunner.getStopWatch());
+                 TimerUtil.createTimer(List.of(player), speedrunner.getStopWatch());
 
-                // Delete old worlds
-                worldManager.deleteWorldsForPlayers(List.of(speedrunner), () -> {
-                    // Assign new worlds
-                    speedrunner.setWorldSet(newWorldSet);
+                 // Delete old worlds
+                 worldManager.deleteWorldsForPlayers(List.of(speedrunner), () -> {
+                     // Assign new worlds
+                     speedrunner.setWorldSet(newWorldSet);
 
-                    // Callback
-                    afterWorldDeletion.run();
-                });
-            });
-        });
+                     // Callback
+                     afterWorldDeletion.run();
+                 });
+             });
+         });
     }
 
     /* ==========================================================
