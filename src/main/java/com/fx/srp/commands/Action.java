@@ -42,6 +42,30 @@ public enum Action {
         );
     }, PlayerArgument.of(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey())),
 
+    DUEL((gm, ctx) -> {
+        // /srp <gamemode> duel <player> - explicitly request a team-vs-team duel
+        Player sender = (Player) ctx.getSender();
+        GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
+        Player target = ctx.get(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey());
+
+        // Validate teammate selections for both sides
+        java.util.Optional<Player> senderMate = gm.getSelectedTeammate(sender);
+        java.util.Optional<Player> targetMate = gm.getSelectedTeammate(target);
+        if (senderMate.isEmpty()) {
+            sender.sendMessage("§cYou have no selected teammate. Use §e/srp <mode> team <player>§c to set one.");
+            return;
+        }
+        if (targetMate.isEmpty()) {
+            sender.sendMessage("§cTarget has no selected teammate. They must set one to be challenged.");
+            return;
+        }
+
+        // Delegate to the multiplayer request flow (it will detect this as a team-invite)
+        gameMode.getManager().asMultiplayerManager().ifPresent(gameModeManager ->
+                gameModeManager.request(sender, target, gameMode)
+        );
+    }, PlayerArgument.of(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey())),
+
     TEAM((gm, ctx) -> {
         // /srp <gamemode> team <player> - select a teammate for team-based battles
         Player sender = (Player) ctx.getSender();
