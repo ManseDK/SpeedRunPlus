@@ -19,6 +19,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -114,8 +115,12 @@ public class WorldManager {
 
         // Determine the seed
         Long seed = inputSeed;
-        if (inputSeed == null) seed = seedManager.selectSeed();
-        String seedString = seed != null ? String.valueOf(seed) : null;
+        if (seed == null) seed = seedManager.selectSeed();
+        // If no filtered seed was selected (i.e. RANDOM), generate a single random seed
+        // so that all players in this creation call get the same world seed instead of
+        // having Minecraft pick a different random seed per world.
+        if (seed == null) seed = ThreadLocalRandom.current().nextLong();
+        String seedString = String.valueOf(seed);
 
         for (Player player : players) {
             Bukkit.getScheduler().runTask(plugin, () -> {
