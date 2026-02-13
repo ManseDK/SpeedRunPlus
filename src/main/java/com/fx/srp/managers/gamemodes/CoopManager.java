@@ -6,6 +6,7 @@ import com.fx.srp.managers.util.WorldManager;
 import com.fx.srp.model.player.Speedrunner;
 import com.fx.srp.model.run.Speedrun;
 import com.fx.srp.model.run.CoopSpeedrun;
+import com.fx.srp.model.run.TeamBattleSpeedrun;
 import com.fx.srp.util.time.TimeFormatter;
 import com.fx.srp.commands.GameMode;
 import lombok.NonNull;
@@ -53,7 +54,92 @@ public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
         Player leader = getRequestSender(partner);
         if (leader == null) return;
 
-        // Setup stopwatch
+        // Check if both players have selected available teammates -> start a 2v2 coop duel
+        java.util.Optional<Player> leaderMateOpt = gameManager.getSelectedTeammate(leader);
+        java.util.Optional<Player> partnerMateOpt = gameManager.getSelectedTeammate(partner);
+
+        boolean leaderHasMate = leaderMateOpt.isPresent() && !gameManager.isInRun(leaderMateOpt.get()) && !leaderMateOpt.get().equals(partner);
+        boolean partnerHasMate = partnerMateOpt.isPresent() && !gameManager.isInRun(partnerMateOpt.get()) && !partnerMateOpt.get().equals(leader);
+
+        if (leaderHasMate && partnerHasMate) {
+            // === START COOP-VS-COOP (2v2) using TeamBattleSpeedrun ===
+            Player leaderMate = leaderMateOpt.get();
+            Player partnerMate = partnerMateOpt.get();
+
+            StopWatch stopWatch = new StopWatch();
+
+            Speedrunner leaderRunner = new Speedrunner(leader, stopWatch);
+            Speedrunner leaderMateRunner = new Speedrunner(leaderMate, stopWatch);
+            Speedrunner partnerRunner = new Speedrunner(partner, stopWatch);
+            Speedrunner partnerMateRunner = new Speedrunner(partnerMate, stopWatch);
+
+            leaderRunner.captureState();
+            leaderMateRunner.captureState();
+            partnerRunner.captureState();
+            partnerMateRunner.captureState();
+
+            TeamBattleSpeedrun teamRun = new TeamBattleSpeedrun(
+                    GameMode.BATTLE,
+                    leaderRunner,
+                    leaderMateRunner,
+                    partnerRunner,
+                    partnerMateRunner,
+                    stopWatch,
+                    null
+            );
+
+            gameManager.registerRun(teamRun);
+            initializeRun(teamRun);
+
+            leader.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
+            partner.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
+
+            // Create world-sets for both team leaders; teammates get same team world
+            worldManager.createWorldsForPlayers(List.of(leader, partner), null, (sets, seedType) -> {
+                WorldManager.WorldSet leaderWorldSet = sets.get(leader.getUniqueId());
+                WorldManager.WorldSet partnerWorldSet = sets.get(partner.getUniqueId());
+
+                leaderRunner.setWorldSet(leaderWorldSet);
+                leaderMateRunner.setWorldSet(leaderWorldSet);
+                partnerRunner.setWorldSet(partnerWorldSet);
+                partnerMateRunner.setWorldSet(partnerWorldSet);
+
+                long seedLong = leaderWorldSet.getSpawn().getWorld().getSeed();
+                teamRun.setSeed(Long.valueOf(seedLong));
+
+                // Inform all players about the seed type
+                String raw = seedType.name().toLowerCase().replace('_', ' ');
+                String pretty = raw.substring(0, 1).toUpperCase() + raw.substring(1);
+                leader.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                leaderMate.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                partner.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                partnerMate.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+
+                // Freeze all
+                leaderRunner.freeze();
+                leaderMateRunner.freeze();
+                partnerRunner.freeze();
+                partnerMateRunner.freeze();
+
+                // Teleport all
+                leader.teleport(leaderRunner.getWorldSet().getSpawn());
+                leaderMate.teleport(leaderMateRunner.getWorldSet().getSpawn());
+                partner.teleport(partnerRunner.getWorldSet().getSpawn());
+                partnerMate.teleport(partnerMateRunner.getWorldSet().getSpawn());
+
+                // Reset states
+                leaderRunner.resetState();
+                leaderMateRunner.resetState();
+                partnerRunner.resetState();
+                partnerMateRunner.resetState();
+
+                startCountdown(teamRun, List.of(leaderRunner, leaderMateRunner, partnerRunner, partnerMateRunner));
+            });
+
+            return;
+        }
+
+        // FALLBACK: normal coop (2 players)
         StopWatch stopWatch = new StopWatch();
         Speedrunner leaderSpeedrunner = new Speedrunner(leader, stopWatch);
         Speedrunner partnerSpeedrunner = new Speedrunner(partner, stopWatch);
