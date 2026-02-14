@@ -103,64 +103,25 @@ public abstract class MultiplayerGameModeManager<T extends Speedrun>
             return;
         }
 
-        // Determine whether this is a team-invite (both players have selected teammates)
-        java.util.Optional<Player> senderMate = gameManager.getSelectedTeammate(sender);
-        java.util.Optional<Player> targetMate = gameManager.getSelectedTeammate(target);
-
-        boolean senderHasMate = senderMate.isPresent() && !gameManager.isInRun(senderMate.get()) && !senderMate.get().equals(target);
-        boolean targetHasMate = targetMate.isPresent() && !gameManager.isInRun(targetMate.get()) && !targetMate.get().equals(sender);
-
-        boolean teamInvite = senderHasMate && targetHasMate;
-
-        // Make the request (mark as team invite when applicable)
-        PendingRequest request = new PendingRequest(senderUUID, teamInvite);
+        // Team invites via selected teammates have been removed. Only CoopManager creates team invites.
+        PendingRequest request = new PendingRequest(senderUUID, false);
         pendingRequests.put(targetUUID, request);
         String gameModeName = gameMode.name().toLowerCase(Locale.ROOT);
 
-        if (teamInvite) {
-            // Notify target about a team request
-            String sMateName = senderMate.get().getName();
-            String tMateName = targetMate.get().getName();
-            sender.sendMessage(ChatColor.YELLOW + "You’ve sent a TEAM request to " + ChatColor.GRAY + target.getName() + ChatColor.YELLOW + "!");
-            if (senderMate.isPresent()) senderMate.get().sendMessage(ChatColor.YELLOW + "Your team has been requested to " + ChatColor.GRAY + target.getName() + ChatColor.YELLOW + "!");
-
-            target.sendMessage(ChatColor.YELLOW + "You’ve been requested to a TEAM " + gameModeName + " run by " + ChatColor.GRAY + sender.getName() + " & " + sMateName + ChatColor.YELLOW + "!");
-            if (targetMate.isPresent()) targetMate.get().sendMessage(ChatColor.YELLOW + "Your team has been challenged by " + ChatColor.GRAY + sender.getName() + " & " + sMateName + ChatColor.YELLOW + "! Use " + ChatColor.GRAY + "/srp " + gameModeName + " accept" + ChatColor.YELLOW + " or " + ChatColor.GRAY + "/srp " + gameModeName + " decline");
-        } else {
-            sender.sendMessage(
-                    ChatColor.YELLOW + "You’ve sent a request to " +
-                    ChatColor.GRAY + target.getName() +
-                    ChatColor.YELLOW + "!"
-            );
-            target.sendMessage(
-                    ChatColor.YELLOW + "You’ve been requested to a " + gameModeName + " run by " +
-                    ChatColor.GRAY + sender.getName() + ChatColor.YELLOW + "!"
-            );
-            target.sendMessage(
-                    ChatColor.YELLOW + "Use " +
-                    ChatColor.GRAY + "/srp " + gameModeName + " accept" +
-                    ChatColor.YELLOW + ", or " +
-                    ChatColor.GRAY + "/srp " + gameModeName + " decline" +
-                    ChatColor.YELLOW + "!"
-            );
-        }
+        // Notify sender/target about the request
+        sender.sendMessage(ChatColor.YELLOW + "You’ve sent a request to " + ChatColor.GRAY + target.getName() + ChatColor.YELLOW + "!");
+        target.sendMessage(ChatColor.YELLOW + "You’ve been requested to a " + gameModeName + " run by " + ChatColor.GRAY + sender.getName() + ChatColor.YELLOW + "!");
+        target.sendMessage(ChatColor.YELLOW + "Use " + ChatColor.GRAY + "/srp " + gameModeName + " accept" + ChatColor.YELLOW + " or " + ChatColor.GRAY + "/srp " + gameModeName + " decline");
 
         // Schedule request timeout
         int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
             pendingRequests.remove(targetUUID);
-            if (teamInvite) {
-                sender.sendMessage(ChatColor.YELLOW + "Your team request to " + ChatColor.GRAY + target.getName() + ChatColor.YELLOW + " has expired!");
-                senderMate.ifPresent(m -> m.sendMessage(ChatColor.YELLOW + "Your team's request to " + ChatColor.GRAY + target.getName() + ChatColor.YELLOW + " has expired!"));
-                target.sendMessage(ChatColor.YELLOW + "The team speedrun request has expired.");
-                targetMate.ifPresent(m -> m.sendMessage(ChatColor.YELLOW + "The team speedrun request has expired."));
-            } else {
-                sender.sendMessage(
-                        ChatColor.YELLOW + "Your request to " +
-                        ChatColor.GRAY + target.getName() + " " +
-                        ChatColor.YELLOW + "has expired!"
-                );
-                target.sendMessage(ChatColor.YELLOW + "The speedrun request has expired.");
-            }
+            sender.sendMessage(
+                    ChatColor.YELLOW + "Your request to " +
+                    ChatColor.GRAY + target.getName() + " " +
+                    ChatColor.YELLOW + "has expired!"
+            );
+            target.sendMessage(ChatColor.YELLOW + "The speedrun request has expired.");
         }, configHandler.getMaxRequestTime() / 50L).getTaskId();
 
         request.setTimeoutTaskId(taskId);
@@ -215,13 +176,6 @@ public abstract class MultiplayerGameModeManager<T extends Speedrun>
                     ChatColor.GRAY + target.getName() + " " +
                     ChatColor.YELLOW + "has declined your request!"
             );
-            // If it was a team invite, inform teammates
-            if (request.isTeamInvite()) {
-                java.util.Optional<Player> leaderMate = gameManager.getSelectedTeammate(leader);
-                java.util.Optional<Player> targetMate = gameManager.getSelectedTeammate(target);
-                leaderMate.ifPresent(m -> m.sendMessage(ChatColor.YELLOW + "Your team invite has been declined."));
-                targetMate.ifPresent(m -> m.sendMessage(ChatColor.YELLOW + "Your team's invite has been declined."));
-            }
         }
     }
 

@@ -29,7 +29,6 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -47,9 +46,6 @@ import java.util.stream.Collectors;
 public class GameManager {
 
     private final ActiveRunRegistry runRegistry = ActiveRunRegistry.getINSTANCE();
-
-    // Track selected teammates for players (for 2v2)
-    private final java.util.Map<java.util.UUID, java.util.UUID> selectedTeammates = new ConcurrentHashMap<>();
 
     // Game modes
     private final SoloManager soloManager;
@@ -132,8 +128,7 @@ public class GameManager {
                 runRegistry.addRun(player.getPlayer().getUniqueId(), run)
         );
 
-        // Clear teammate selections for players who just entered a run
-        run.getSpeedrunners().forEach(sr -> selectedTeammates.remove(sr.getPlayer().getUniqueId()));
+        // No selected-teammate state to clear (coops are managed by CoopManager)
 
         // Start AFK monitoring once we have at least one active run
         startAfkMonitoring();
@@ -400,25 +395,5 @@ public class GameManager {
         sender.sendMessage("");
         sender.sendMessage(red + "/srp admin seed <type> <amount>" + white + " - Add new filtered seeds");
         sender.sendMessage(red + "===========================");
-    }
-
-    /**
-     * Set a selected teammate for a player. Overrides any previous selection.
-     */
-    public void setSelectedTeammate(Player player, Player teammate) {
-        if (player == null || teammate == null) return;
-        selectedTeammates.put(player.getUniqueId(), teammate.getUniqueId());
-    }
-
-    /**
-     * Returns the selected teammate for a player, if any and online.
-     */
-    public java.util.Optional<Player> getSelectedTeammate(Player player) {
-        if (player == null) return java.util.Optional.empty();
-        java.util.UUID teammateUuid = selectedTeammates.get(player.getUniqueId());
-        if (teammateUuid == null) return java.util.Optional.empty();
-        Player teammate = Bukkit.getPlayer(teammateUuid);
-        if (teammate == null || !teammate.isOnline()) return java.util.Optional.empty();
-        return java.util.Optional.of(teammate);
     }
 }

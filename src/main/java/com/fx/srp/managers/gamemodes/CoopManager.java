@@ -4,6 +4,7 @@ import com.fx.srp.SpeedRunPlus;
 import com.fx.srp.managers.GameManager;
 import com.fx.srp.managers.util.WorldManager;
 import com.fx.srp.model.player.Speedrunner;
+import com.fx.srp.model.requests.PendingRequest;
 import com.fx.srp.model.run.Speedrun;
 import com.fx.srp.model.run.CoopSpeedrun;
 import com.fx.srp.model.run.TeamBattleSpeedrun;
@@ -28,12 +29,21 @@ import java.util.Optional;
  */
 public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
 
+    // Track coops that have accepted an invite but haven't had worlds created yet
+    private final java.util.Map<java.util.UUID, CoopGroup> pendingCoops = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static class CoopGroup {
+        final Player leader;
+        final Player partner;
+
+        CoopGroup(Player leader, Player partner) {
+            this.leader = leader;
+            this.partner = partner;
+        }
+    }
+
     /**
      * Constructs a new CoopManager.
-     *
-     * @param plugin the main {@link SpeedRunPlus} plugin instance
-     * @param gameManager the {@link GameManager} for run registration and player management
-     * @param worldManager the {@link WorldManager} for creating and deleting worlds
      */
     public CoopManager(SpeedRunPlus plugin, GameManager gameManager, WorldManager worldManager) {
         super(plugin, gameManager, worldManager);
@@ -43,155 +53,138 @@ public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
      *                       ACCEPT COOP
      * ========================================================== */
     /**
-     * Accepts a pending coop request and starts a {@link CoopSpeedrun}.
-     *
-     * <p>Sets up a shared {@link StopWatch}, captures player states, and more.</p>
-     *
-     * @param partner the player accepting the request
+     * Accepts a pending coop request. Previously this created worlds immediately;
+     * it now registers the accepted coop as a pending coop group and defers world
+     * creation until a duel between two coops is accepted.
      */
     @Override
     public void start(Player partner) {
-        Player leader = getRequestSender(partner);
-        if (leader == null) return;
+        // Pop the pending request so we can inspect its flags (teamInvite / duel)
+        com.fx.srp.model.requests.PendingRequest request = popPendingRequest(partner);
+        if (request == null) return;
 
-        // Check if both players have selected available teammates -> start a 2v2 coop duel
-        java.util.Optional<Player> leaderMateOpt = gameManager.getSelectedTeammate(leader);
-        java.util.Optional<Player> partnerMateOpt = gameManager.getSelectedTeammate(partner);
+        java.util.UUID senderUuid = request.getPlayerUUID();
+        Player leader = org.bukkit.Bukkit.getPlayer(senderUuid);
+        if (leader == null) {
+            partner.sendMessage(ChatColor.YELLOW + "The other player is no longer available!");
+            return;
+        }
 
-        boolean leaderHasMate = leaderMateOpt.isPresent() && !gameManager.isInRun(leaderMateOpt.get()) && !leaderMateOpt.get().equals(partner);
-        boolean partnerHasMate = partnerMateOpt.isPresent() && !gameManager.isInRun(partnerMateOpt.get()) && !partnerMateOpt.get().equals(leader);
+        // If this request was a duel request, both sides must have previously accepted a coop
+        if (request.isDuel()) {
+            // Both challenger and accepter must have pending coop groups
+            CoopGroup challengerGroup = pendingCoops.get(leader.getUniqueId());
+            CoopGroup accepterGroup = pendingCoops.get(partner.getUniqueId());
 
-        if (leaderHasMate && partnerHasMate) {
-            // === START COOP-VS-COOP (2v2) using TeamBattleSpeedrun ===
-            Player leaderMate = leaderMateOpt.get();
-            Player partnerMate = partnerMateOpt.get();
+            if (challengerGroup == null) {
+                leader.sendMessage(ChatColor.YELLOW + "Your coop is not ready to duel. Ensure you accepted your coop invite first.");
+                partner.sendMessage(ChatColor.YELLOW + "The challenger is not ready for a duel.");
+                return;
+            }
+            if (accepterGroup == null) {
+                partner.sendMessage(ChatColor.YELLOW + "Your coop has not accepted an invite yet; cannot start a duel.");
+                return;
+            }
 
+            // Build Speedrunner objects for all four players (2v2: leader+partner vs leader+partner)
             StopWatch stopWatch = new StopWatch();
 
-            Speedrunner leaderRunner = new Speedrunner(leader, stopWatch);
-            Speedrunner leaderMateRunner = new Speedrunner(leaderMate, stopWatch);
-            Speedrunner partnerRunner = new Speedrunner(partner, stopWatch);
-            Speedrunner partnerMateRunner = new Speedrunner(partnerMate, stopWatch);
+            Speedrunner cLeaderRunner = new Speedrunner(challengerGroup.leader, stopWatch);
+            Speedrunner cPartnerRunner = new Speedrunner(challengerGroup.partner, stopWatch);
+            Speedrunner aLeaderRunner = new Speedrunner(accepterGroup.leader, stopWatch);
+            Speedrunner aPartnerRunner = new Speedrunner(accepterGroup.partner, stopWatch);
 
-            leaderRunner.captureState();
-            leaderMateRunner.captureState();
-            partnerRunner.captureState();
-            partnerMateRunner.captureState();
+            // Capture states
+            cLeaderRunner.captureState();
+            cPartnerRunner.captureState();
+            aLeaderRunner.captureState();
+            aPartnerRunner.captureState();
 
+            // Create the TeamBattleSpeedrun
             TeamBattleSpeedrun teamRun = new TeamBattleSpeedrun(
                     GameMode.BATTLE,
-                    leaderRunner,
-                    leaderMateRunner,
-                    partnerRunner,
-                    partnerMateRunner,
+                    cLeaderRunner,
+                    cPartnerRunner,
+                    aLeaderRunner,
+                    aPartnerRunner,
                     stopWatch,
                     null
             );
 
             gameManager.registerRun(teamRun);
-            // TeamBattleSpeedrun is not a CoopSpeedrun; call generic initializer via raw type to avoid generic type mismatch
+            // Initialize run (raw type dispatch to avoid generic mismatch)
             ((GameModeManager) this).initializeRun(teamRun);
 
-            leader.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
-            partner.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
+            // Inform players
+            challengerGroup.leader.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
+            challengerGroup.partner.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
+            accepterGroup.leader.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
+            accepterGroup.partner.sendMessage(ChatColor.YELLOW + "Creating the worlds for your teams...");
 
-            // Create world-sets for both team leaders; teammates get same team world
-            worldManager.createWorldsForPlayers(List.of(leader, partner), null, (sets, seedType) -> {
-                WorldManager.WorldSet leaderWorldSet = sets.get(leader.getUniqueId());
-                WorldManager.WorldSet partnerWorldSet = sets.get(partner.getUniqueId());
+            // Create worlds for each team leader (each leader gets their own world set)
+            worldManager.createWorldsForPlayers(java.util.List.of(challengerGroup.leader, accepterGroup.leader), null, (sets, seedType) -> {
+                WorldManager.WorldSet challengerWorldSet = sets.get(challengerGroup.leader.getUniqueId());
+                WorldManager.WorldSet accepterWorldSet = sets.get(accepterGroup.leader.getUniqueId());
 
-                leaderRunner.setWorldSet(leaderWorldSet);
-                leaderMateRunner.setWorldSet(leaderWorldSet);
-                partnerRunner.setWorldSet(partnerWorldSet);
-                partnerMateRunner.setWorldSet(partnerWorldSet);
+                cLeaderRunner.setWorldSet(challengerWorldSet);
+                cPartnerRunner.setWorldSet(challengerWorldSet);
+                aLeaderRunner.setWorldSet(accepterWorldSet);
+                aPartnerRunner.setWorldSet(accepterWorldSet);
 
-                long seedLong = leaderWorldSet.getSpawn().getWorld().getSeed();
-                teamRun.setSeed(Long.valueOf(seedLong));
+                long seedLong = challengerWorldSet.getSpawn().getWorld().getSeed();
+                teamRun.setSeed(seedLong);
 
                 // Inform all players about the seed type
                 String raw = seedType.name().toLowerCase().replace('_', ' ');
                 String pretty = raw.substring(0, 1).toUpperCase() + raw.substring(1);
-                leader.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
-                leaderMate.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
-                partner.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
-                partnerMate.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                challengerGroup.leader.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                challengerGroup.partner.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                accepterGroup.leader.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
+                accepterGroup.partner.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
 
                 // Freeze all
-                leaderRunner.freeze();
-                leaderMateRunner.freeze();
-                partnerRunner.freeze();
-                partnerMateRunner.freeze();
+                cLeaderRunner.freeze();
+                cPartnerRunner.freeze();
+                aLeaderRunner.freeze();
+                aPartnerRunner.freeze();
 
                 // Teleport all
-                leader.teleport(leaderRunner.getWorldSet().getSpawn());
-                leaderMate.teleport(leaderMateRunner.getWorldSet().getSpawn());
-                partner.teleport(partnerRunner.getWorldSet().getSpawn());
-                partnerMate.teleport(partnerMateRunner.getWorldSet().getSpawn());
+                challengerGroup.leader.teleport(cLeaderRunner.getWorldSet().getSpawn());
+                challengerGroup.partner.teleport(cPartnerRunner.getWorldSet().getSpawn());
+                accepterGroup.leader.teleport(aLeaderRunner.getWorldSet().getSpawn());
+                accepterGroup.partner.teleport(aPartnerRunner.getWorldSet().getSpawn());
 
                 // Reset states
-                leaderRunner.resetState();
-                leaderMateRunner.resetState();
-                partnerRunner.resetState();
-                partnerMateRunner.resetState();
+                cLeaderRunner.resetState();
+                cPartnerRunner.resetState();
+                aLeaderRunner.resetState();
+                aPartnerRunner.resetState();
 
-                // Use raw type dispatch to call startCountdown with a TeamBattleSpeedrun
-                ((GameModeManager) this).startCountdown(teamRun, List.of(leaderRunner, leaderMateRunner, partnerRunner, partnerMateRunner));
+                // Start countdown for the team battle run
+                ((GameModeManager) this).startCountdown(teamRun, List.of(cLeaderRunner, cPartnerRunner, aLeaderRunner, aPartnerRunner));
             });
+
+            // Remove pending coop entries now that worlds/runs are created
+            pendingCoops.remove(challengerGroup.leader.getUniqueId());
+            pendingCoops.remove(accepterGroup.leader.getUniqueId());
 
             return;
         }
 
-        // FALLBACK: normal coop (2 players)
-        StopWatch stopWatch = new StopWatch();
-        Speedrunner leaderSpeedrunner = new Speedrunner(leader, stopWatch);
-        Speedrunner partnerSpeedrunner = new Speedrunner(partner, stopWatch);
+        // FALLBACK: Normal coop acceptance -> register coop as pending group and do NOT create worlds
+        // This defers world creation until someone challenges this coop to a duel.
+        if (gameManager.isInRun(leader) || gameManager.isInRun(partner)) {
+            partner.sendMessage(ChatColor.RED + "One of you is already in a speedrun!");
+            return;
+        }
 
-        // Capture the players' state - their inventory, levels, etc.
-        leaderSpeedrunner.captureState();
-        partnerSpeedrunner.captureState();
+        // Store the pending coop pairing
+        pendingCoops.put(leader.getUniqueId(), new CoopGroup(leader, partner));
 
-        CoopSpeedrun coopSpeedrun = new CoopSpeedrun(
-                GameMode.COOP,
-                leaderSpeedrunner,
-                partnerSpeedrunner,
-                stopWatch,
-                null
-        );
-        gameManager.registerRun(coopSpeedrun);
-
-        initializeRun(coopSpeedrun);
-
-        leader.sendMessage(ChatColor.YELLOW + "Creating the world...");
-        partner.sendMessage(ChatColor.YELLOW + "Creating the world...");
-        worldManager.createWorldsForPlayers(List.of(leader), null, (sets, seedType) -> {
-            // Get the set of worlds (overworld, nether, end) for each of the two players
-            WorldManager.WorldSet leaderWorldSet = sets.get(leader.getUniqueId());
-
-            // Assign them the world sets and set the shared seed
-            leaderSpeedrunner.setWorldSet(leaderWorldSet);
-            partnerSpeedrunner.setWorldSet(leaderWorldSet);
-            coopSpeedrun.setSeed(leaderWorldSet.getOverworld().getSeed());
-
-            // Inform both players about the seed type
-            String raw = seedType.name().toLowerCase().replace('_', ' ');
-            String pretty = raw.substring(0,1).toUpperCase() + raw.substring(1);
-            leader.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
-            partner.sendMessage(ChatColor.AQUA + "Seed type: " + ChatColor.WHITE + pretty);
-
-            // Freeze the players
-            leaderSpeedrunner.freeze();
-            partnerSpeedrunner.freeze();
-
-            // Teleport players
-            leader.teleport(leaderSpeedrunner.getWorldSet().getSpawn());
-            partner.teleport(partnerSpeedrunner.getWorldSet().getSpawn());
-
-            // Reset players' state (health, hunger, inventory, etc.)
-            leaderSpeedrunner.resetState();
-            partnerSpeedrunner.resetState();
-
-            startCountdown(coopSpeedrun, List.of(leaderSpeedrunner, partnerSpeedrunner));
-        });
+        leader.sendMessage(ChatColor.GREEN + partner.getName() + " has accepted your coop invite. Your coop is ready and waiting for a duel.");
+        partner.sendMessage(ChatColor.GREEN + "You have joined " + leader.getName() + "'s coop. Awaiting a duel to create worlds and begin.");
+        leader.sendMessage(ChatColor.YELLOW + "Use /srp coop duel <leader> to challenge another coop when you're ready.");
+        partner.sendMessage(ChatColor.YELLOW + "Use /srp coop duel <leader> to challenge another coop when you're ready.");
     }
 
     /* ==========================================================
@@ -268,9 +261,9 @@ public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
 
     // Method to send a coop request to another player
     public void sendCoopRequest(Player sender, Player target) {
-        // Check if the target player is already in a coop
-        if (isPlayerInCoop(target)) {
-            sender.sendMessage(ChatColor.RED + "The player is already in a coop.");
+        // Check if the target player is already in a coop (pending or active)
+        if (isPlayerInCoop(target) || pendingCoops.containsKey(target.getUniqueId())) {
+            sender.sendMessage(ChatColor.RED + "The player is already in a coop or pending coop.");
             return;
         }
 
@@ -282,32 +275,56 @@ public class CoopManager extends MultiplayerGameModeManager<CoopSpeedrun> {
 
     // Method to send a duel request to another coop leader
     public void sendDuelRequest(Player sender, Player targetLeader) {
-        // Check if both players are coop leaders
+        // Check if both players are coop leaders (must have pending coop groups)
         if (!isPlayerCoopLeader(sender)) {
-            sender.sendMessage(ChatColor.RED + "You must be a coop leader to send a duel request.");
+            sender.sendMessage(ChatColor.RED + "You must be a coop leader (have an accepted coop) to send a duel request.");
             return;
         }
 
         if (!isPlayerCoopLeader(targetLeader)) {
-            sender.sendMessage(ChatColor.RED + targetLeader.getName() + " is not a coop leader.");
+            sender.sendMessage(ChatColor.RED + targetLeader.getName() + " is not a coop leader or their coop is not ready.");
             return;
         }
 
-        // Add logic to track the duel request
-        // For now, just send a message to the target coop leader
-        targetLeader.sendMessage(ChatColor.YELLOW + sender.getName() + " has challenged your coop to a duel! Type /srp coop accept to accept the challenge.");
+        // Create a duel pending request with timeout similar to MultiplayerGameModeManager.request
+        java.util.UUID senderUUID = sender.getUniqueId();
+        java.util.UUID targetUUID = targetLeader.getUniqueId();
+
+        // target already has a pending request
+        if (pendingRequests.containsKey(targetUUID)) {
+            sender.sendMessage(
+                    ChatColor.GRAY + targetLeader.getName() + " " +
+                    ChatColor.YELLOW + " already has a pending request!"
+            );
+            return;
+        }
+
+        PendingRequest request = new PendingRequest(senderUUID, false, true);
+        pendingRequests.put(targetUUID, request);
+
         sender.sendMessage(ChatColor.GREEN + "You have challenged " + targetLeader.getName() + "'s coop to a duel.");
+        targetLeader.sendMessage(ChatColor.YELLOW + sender.getName() + " has challenged your coop to a duel! Type /srp coop accept to accept the challenge.");
+
+        int taskId = org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            pendingRequests.remove(targetUUID);
+            sender.sendMessage(ChatColor.YELLOW + "Your duel request to " + ChatColor.GRAY + targetLeader.getName() + ChatColor.YELLOW + " has expired!");
+            targetLeader.sendMessage(ChatColor.YELLOW + "The duel request has expired.");
+        }, configHandler.getMaxRequestTime() / 50L).getTaskId();
+
+        request.setTimeoutTaskId(taskId);
     }
 
-    // Placeholder method to check if a player is in a coop
+    // Placeholder method to check if a player is in a coop (active run or pending)
     private boolean isPlayerInCoop(Player player) {
-        // Implement logic to check if the player is in a coop
-        return false;
+        // Check active runs
+        if (gameManager.isInRun(player)) return true;
+        // Check pending coop groups
+        return pendingCoops.containsKey(player.getUniqueId()) || pendingCoops.values().stream().anyMatch(g -> g.partner.equals(player));
     }
 
     // Placeholder method to check if a player is a coop leader
     private boolean isPlayerCoopLeader(Player player) {
-        // Implement logic to check if the player is a coop leader
-        return false;
+        // Leader is the player who created the pending coop group
+        return pendingCoops.containsKey(player.getUniqueId());
     }
 }

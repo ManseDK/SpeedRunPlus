@@ -43,56 +43,19 @@ public enum Action {
     }, PlayerArgument.of(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey())),
 
     DUEL((gm, ctx) -> {
-        // /srp <gamemode> duel <player> - explicitly request a team-vs-team duel
         Player sender = (Player) ctx.getSender();
         GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
         Player target = ctx.get(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey());
 
-        // Validate teammate selections for both sides
-        java.util.Optional<Player> senderMate = gm.getSelectedTeammate(sender);
-        java.util.Optional<Player> targetMate = gm.getSelectedTeammate(target);
-        if (senderMate.isEmpty()) {
-            sender.sendMessage("§cYou have no selected teammate. Use §e/srp <mode> team <player>§c to set one.");
-            return;
-        }
-        if (targetMate.isEmpty()) {
-            sender.sendMessage("§cTarget has no selected teammate. They must set one to be challenged.");
+        // If this is a coop duel, delegate to CoopManager which handles coop partners
+        if (gameMode == GameMode.COOP) {
+            gm.getCoopManager().sendDuelRequest(sender, target);
             return;
         }
 
-        // Delegate to the multiplayer request flow (it will detect this as a team-invite)
-        gameMode.getManager().asMultiplayerManager().ifPresent(gameModeManager ->
-                gameModeManager.request(sender, target, gameMode)
-        );
+        // For non-coop modes, team duels require pre-selected teammates which are no longer supported.
+        sender.sendMessage("§cTeam duels for this mode are not supported. Use /srp <mode> request <player> to challenge a player.");
     }, PlayerArgument.of(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey())),
-
-    TEAM((gm, ctx) -> {
-        // /srp <gamemode> team <player> - select a teammate for team-based battles
-        Player sender = (Player) ctx.getSender();
-        Player target = ctx.get(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey());
-        if (sender.equals(target)) {
-            sender.sendMessage("You cannot set yourself as your teammate.");
-            return;
-        }
-        gm.setSelectedTeammate(sender, target);
-        sender.sendMessage("§eTeammate set to §f" + target.getName() + "§e. When you initiate/accept a battle both teams will be used if available.");
-    }, PlayerArgument.of(CommandRegistry.ContextKeys.PLAYER_TARGET.getKey())),
-
-    INVITE((gm, ctx) -> {
-        // /srp <gamemode> invite - invite your selected teammate to join you
-        Player sender = (Player) ctx.getSender();
-        GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
-        java.util.Optional<Player> mate = gm.getSelectedTeammate(sender);
-        if (mate.isEmpty()) {
-            sender.sendMessage("§cYou have no selected teammate. Use §e/srp <mode> team <player>§c to set one.");
-            return;
-        }
-        Player teammate = mate.get();
-        // Send a request to the teammate using the multiplayer manager
-        gameMode.getManager().asMultiplayerManager().ifPresent(manager ->
-                manager.request(sender, teammate, gameMode)
-        );
-    }),
 
     ACCEPT((gm, ctx) -> {
         GameMode gameMode = ctx.get(CommandRegistry.ContextKeys.GAME_MODE.getKey());
