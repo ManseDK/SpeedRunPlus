@@ -240,6 +240,17 @@ public class GameManager {
                 .findFirst());
     }
 
+    /**
+     * Returns the selected teammate for a player, if any.
+     *
+     * @param player the player
+     * @return an Optional containing the selected teammate, or empty if none
+     */
+    public Optional<Player> getSelectedTeammate(Player player) {
+        // TODO: Implement actual teammate selection logic
+        return Optional.empty();
+    }
+
     /* ==========================================================
      *                    Event management
      * ========================================================== */

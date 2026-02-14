@@ -70,6 +70,11 @@ public enum Action {
         gameMode.getManager().asMultiplayerManager().ifPresent(gameModeManager ->
                 gameModeManager.decline(target)
         );
+    }),
+
+    TEAM((gm, ctx) -> {
+        // TODO: Implement TEAM action logic
+        ctx.getSender().sendMessage("§eTEAM action is not yet implemented.");
     });
 
     private final BiConsumer<GameManager, CommandContext<CommandSender>> executor;
